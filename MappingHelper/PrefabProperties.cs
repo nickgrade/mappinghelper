@@ -467,6 +467,20 @@ namespace MappingHelper
                     value_default: TrackDistribution.Distributed,
                     key: "mh.eventDistribution"
                 ),
+                new PropertyCollection.Property_Bool(
+                    name: "consolidateMoveDecorations",
+                    enableIf: new Dictionary<string, string>() { { "eventDistribution", "Distributed" } },
+                    key: "mh.consolidateMoveDecorations"
+                ),
+                new PropertyCollection.Property_InputField(
+                    name: "consolidateSpeedMultiplier",
+                    type: PropertyCollection.Property_InputField.InputType.Float,
+                    value_default: 1f,
+                    min: 0.01f,
+                    unit: "x",
+                    enableIf: new Dictionary<string, string>() { { "consolidateMoveDecorations", "Enabled" } },
+                    key: "mh.consolidateSpeedMultiplier"
+                ),
                 new PropertyCollection.Property_Enum<SpeedTypeMH>(
                     name: "speedTypeMH",
                     value_default: SpeedTypeMH.Bpm,
@@ -547,6 +561,8 @@ namespace MappingHelper
                 "TrackFeatures",
                 "TrackAnimation",
                 "eventDistribution",
+                "consolidateMoveDecorations",
+                "consolidateSpeedMultiplier",
                 "startTile",
                 "duration",
                 "xPosOffsetRange",
@@ -570,6 +586,8 @@ namespace MappingHelper
                 "TrackFeatures",
                 "TrackAnimation",
                 "eventDistribution",
+                "consolidateMoveDecorations",
+                "consolidateSpeedMultiplier",
                 "startTile",
                 "duration",
                 "xPosOffsetRange",

@@ -95,6 +95,8 @@ namespace MappingHelper
                 int imageEnd = (int)dataPanel.data["imageEnd"];
                 string eventTag = (string)dataPanel.data["eventTag"];
                 bool selectFrame = (bool)dataPanel.data["selectFrame"];
+                bool consolidateMoveDecorations = (bool)dataPanel.data["consolidateMoveDecorations"];
+                float consolidateSpeedMultiplier = (float)dataPanel.data["consolidateSpeedMultiplier"];
                 Vector2 positionStartValue = (Vector2)dataPanel.data["positionStartValue"];
                 Vector2 positionEndValue = (Vector2)dataPanel.data["positionEndValue"];
                 Vector2 pivotStartValue = (Vector2)dataPanel.data["pivotStartValue"];
@@ -231,6 +233,12 @@ namespace MappingHelper
                         float pivotTrackOffset = isCentralized ? (float)dataPanel.data["trackRotation"] : 0;
                         float startBpm = trackDatas[affectTileRangeFrom].bpm;
                         int trackCount = affectTileRangeTo - affectTileRangeFrom + 1;
+                        bool shouldConsolidateMoveDecorations = consolidateMoveDecorations && eventDistribution == TrackDistribution.Distributed;
+                        float consolidateAngleScale = 1f;
+                        if (shouldConsolidateMoveDecorations)
+                        {
+                            consolidateAngleScale = 1f / Mathf.Max(0.01f, consolidateSpeedMultiplier);
+                        }
 
                         if ((bool)dataPanel.data["usePlanet"] && trackFeatures == TrackFeatures.CreateTrack)
                         {
@@ -587,25 +595,25 @@ namespace MappingHelper
                                     {
                                         LevelEvent levelEvent_MD1;
                                         LevelEvent levelEvent_MD2;
-                                        if (eventDistribution ==TrackDistribution.Distributed)
-                                        {
-                                            levelEvent_MD1 = new LevelEvent(floor, LevelEventType.MoveDecorations);
-                                            levelEvent_MD2 = new LevelEvent(floor, LevelEventType.MoveDecorations);
-                                        }
-                                        else
-                                        {
-                                            levelEvent_MD1 = new LevelEvent(affectTileRangeFrom, LevelEventType.MoveDecorations);
-                                            levelEvent_MD2 = new LevelEvent(affectTileRangeFrom, LevelEventType.MoveDecorations);
-                                        }
+                                        int moveDecorationFloor = (eventDistribution == TrackDistribution.Distributed && !shouldConsolidateMoveDecorations)
+                                            ? floor
+                                            : affectTileRangeFrom;
+                                        levelEvent_MD1 = new LevelEvent(moveDecorationFloor, LevelEventType.MoveDecorations);
+                                        levelEvent_MD2 = new LevelEvent(moveDecorationFloor, LevelEventType.MoveDecorations);
 
                                         switch (trackAnimation)
                                         {
                                             case TrackAnimation.DisappearAnimation:
                                                 if (i + startTile.Item1 > 0)
                                                 {
-                                                    if (eventDistribution == TrackDistribution.Distributed)
+                                                    if (eventDistribution == TrackDistribution.Distributed && !shouldConsolidateMoveDecorations)
                                                     {
                                                         levelEvent_MD2.data["angleOffset"] = angleOffset;
+                                                    }
+                                                    else if (shouldConsolidateMoveDecorations)
+                                                    {
+                                                        float angleOffsetValue = GetCumulativeAngleOffset(affectTileRangeFrom, floor, trackDatas) * consolidateAngleScale;
+                                                        levelEvent_MD2.data["angleOffset"] = angleOffset + angleOffsetValue;
                                                     }
                                                     else
                                                     {
@@ -636,10 +644,16 @@ namespace MappingHelper
                                             case TrackAnimation.AppearAnimation:
                                                 if (floor <= affectTileRangeTo - (startTile.Item1 >= 0 ? startTile.Item1 : 0))
                                                 {
-                                                    if (eventDistribution == TrackDistribution.Distributed)
+                                                    if (eventDistribution == TrackDistribution.Distributed && !shouldConsolidateMoveDecorations)
                                                     {
                                                         levelEvent_MD1.data["angleOffset"] = angleOffset;
                                                         levelEvent_MD2.data["angleOffset"] = angleOffset;
+                                                    }
+                                                    else if (shouldConsolidateMoveDecorations)
+                                                    {
+                                                        float angleOffsetValue = GetCumulativeAngleOffset(affectTileRangeFrom, floor, trackDatas) * consolidateAngleScale;
+                                                        levelEvent_MD1.data["angleOffset"] = angleOffset + angleOffsetValue;
+                                                        levelEvent_MD2.data["angleOffset"] = angleOffset + angleOffsetValue;
                                                     }
                                                     else
                                                     {
@@ -1195,6 +1209,27 @@ namespace MappingHelper
                 this.arrivalTime = arrivalTime;
                 this.departureTime = departureTime;
             }
+        }
+
+        private static float GetCumulativeAngleOffset(int baseFloor, int targetFloor, TrackData[] trackDatas)
+        {
+            if (targetFloor <= baseFloor)
+            {
+                return 0f;
+            }
+
+            float offset = 0f;
+            for (int floor = baseFloor; floor < targetFloor; floor++)
+            {
+                float angle = trackDatas[floor].angle;
+                if (Mathf.Approximately(angle, 999f))
+                {
+                    continue;
+                }
+                offset += angle;
+            }
+
+            return offset;
         }
 
         public static Vector2 GetPivotOffset(Vector2 offset, float rotation)
